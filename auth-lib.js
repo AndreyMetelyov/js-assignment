@@ -8,6 +8,7 @@ var allgroups = [
 	{name: "manager", rights: [allrights[0]]},
 	{name: "basic", rights: [allrights[1], allrights[3]]}
 ]
+activeSession = undefined;
 
 function users() {
     return allusers;
@@ -138,14 +139,40 @@ function removeRightFromGroup(right,group) {
     allgroups[groupindex].rights.splice(rightindex,1);
 }
 
-function login(username, password) {}
 
-function currentUser() {}
+function login(username, password) {
+    if (!activeSession) {
+        for (let i=0;i<allusers.length;i++)
+        {
+            if (allusers[i].name === username && allusers[i].password === password)
+            { 
+                activeSession = allusers[i];
+                return true;
+            }
+        }
+    }
+    else return false;
+}
 
-function logout() {}
+function currentUser() {
+    return activeSession;
+}
 
-function isAuthorized(user, right) {}
+function logout() {
+    activeSession = undefined;
+}
 
+function isAuthorized(user, right) {
+    if (!user || !right) throw Error('Exception. Undefined value');
+    if (!allusers.includes(user)) throw Error('Exception. User dont exist');
+    if (!allrights.includes(right)) throw Error('Exception. Right dont exist');
+    let userindex = allusers.indexOf(user);
+    for (let i=0;i<allusers[userindex].groups.length;i++)
+    {
+        if (allusers[userindex].groups[i].rights.includes(right)) return true;
+    }
+    return false;
+}
 
 //-----------------------------------------
 var user1 = createUser("admin", "1234");
@@ -177,3 +204,9 @@ addUserToGroup(user,group);
 userGroups(user);
 deleteGroup(group);
 userGroups(user);
+
+console.log(currentUser());
+var user123 = createUser("user123", "user123");
+console.log(login("user123","user123"));
+console.log(currentUser());
+logout();
