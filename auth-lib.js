@@ -2,11 +2,15 @@ let allusers = [];
     //arguments.length 
     //includes - альтернатива indexof
 // Возвращает массив всех пользователей.
-var allrights = ["manage content", "play games", "delete users", "view site"];
+var allrights = ["view site","play games","manage content",
+    "login as","delete users"];
 var allgroups = [
-	{name: "admin", rights: [allrights[2]]},
-	{name: "manager", rights: [allrights[0]]},
-	{name: "basic", rights: [allrights[1], allrights[3]]}
+    {name: "admin", rights: [allrights[0], allrights[1], allrights[2],
+    allrights[3],allrights[4]]},
+     {name: "tester", rights: [allrights[0], allrights[1], allrights[2],allrights[3]]},
+	{name: "manager", rights: [allrights[0], allrights[1], allrights[2]]},
+    {name: "basic", rights: [allrights[0], allrights[1]]},
+    {name: "guest", rights: [allrights[0]]}
 ]
 activeSession = undefined;
 
@@ -88,8 +92,8 @@ function createGroup(name) {
 
 // Удаляет группу group
 function deleteGroup(group) {
-    if (!group) { throw Error('exception. Undefined value');}
-    if (!allgroups.includes(group)) {throw Error('exception. Wrong group');}
+    if (!group) throw Error('exception. Undefined value');
+    if (!allgroups.includes(group)) throw Error('exception. Wrong group');
     allgroups.splice(allgroups.indexOf(group),1);
     allusers.forEach(user=>{
         let groupindex = user.groups.indexOf(group);
@@ -105,24 +109,11 @@ function groupRights(group) {
 
 // Добавляет право right к группе group
 function addRightToGroup(right,group) {
-    if (!right || !group) { throw Error('exception. Indefined value');}
-    if (!allgroups.includes(group)) { throw Error('exception. Wrong group');}
-    if (Array.isArray(right))
-    {
-        right.forEach(el => { 
-            if (!allrights.includes(el)) { throw Error('exception.Right \"'+right+'\" dont exist');}}
-            );
-        right.forEach(el => { 
-            let groupindex = allgroups.indexOf(group);
-            allgroups[groupindex].rights.push(el);});
-    }
-    else {
-    if (!allrights.includes(right)) 
-    { throw Error('exception.Right \"'+right+'\" dont exist');}
+    if (!right || !group) throw Error('exception. Indefined value');
+    if (!allgroups.includes(group)) throw Error('exception. Wrong group');
+    if (!allrights.includes(right)) throw Error('exception.Right \"'+right+'\" dont exist');
     let groupindex = allgroups.indexOf(group);
     allgroups[groupindex].rights.push(right);
-    }
-
 }
 
 // Удаляет право right из группы group. Должна бросить исключение, если права right нет в группе group
@@ -144,9 +135,11 @@ function login(username, password) {
     if (!activeSession) {
         for (let i=0;i<allusers.length;i++)
         {
-            if (allusers[i].name === username && allusers[i].password === password)
+            if (allusers[i].name === username 
+                && allusers[i].password === password)
             { 
-                activeSession = allusers[i];
+                activeSession = [];
+                activeSession.push(allusers[i]);
                 return true;
             }
         }
@@ -155,11 +148,19 @@ function login(username, password) {
 }
 
 function currentUser() {
-    return activeSession;
+    if (!activeSession) return activeSession;
+    else return activeSession[activeSession.length-1];
 }
 
 function logout() {
-    activeSession = undefined;
+    if (activeSession) 
+    {
+        if (activeSession.length == 1) activeSession = undefined;
+        else 
+            if (Array.isArray(activeSession)) 
+                activeSession.splice(activeSession.length-1,1);
+    }
+    else throw Error('Exception.No active session');
 }
 
 function isAuthorized(user, right) {
@@ -173,7 +174,27 @@ function isAuthorized(user, right) {
     }
     return false;
 }
-
+function loginAs(user)
+{
+    if (!user || !activeSession) throw Error('Exception. Undefined value');
+    if (!allusers.includes(user)) throw Error('Exception. User dont exist');
+    let groups_with_loginAs_Right = [];
+    let loginas_right_index = allrights.indexOf("login as");
+    let loginas_right = allrights[loginas_right_index];
+    if (isAuthorized(currentUser(),loginas_right)) activeSession.push(user);
+    else throw Error('Exception. User havent got enougth rights for loginAs');
+}
+function securityWrapper(action, right)
+{
+    allListeners.forEach(listener=>{
+        listener(currentUser(),action);
+    });
+    if (!currentUser()) return undefined;
+    if (isAuthorized(currentUser(),right)) {
+        return action;
+    }
+    else return function(){};
+}
 //-----------------------------------------
 var user1 = createUser("admin", "1234");
 deleteUser(user1);
@@ -190,14 +211,8 @@ removeUserFromGroup(user,group);
 
 var right = createRight('myright');
 var right2 = createRight('myright2');
-let masrights=[];
-masrights.push(right);
-masrights.push(right2);
-/*
 addRightToGroup(right, group);
 addRightToGroup(right2, group);
-*/
-addRightToGroup(masrights, group);
 
 userGroups(user);
 addUserToGroup(user,group);
@@ -210,3 +225,62 @@ var user123 = createUser("user123", "user123");
 console.log(login("user123","user123"));
 console.log(currentUser());
 logout();
+
+//доп задания
+var groupAdmin = allgroups[0];
+var groupTester = allgroups[1];
+var groupManager = allgroups[2];
+var groupBasic = allgroups[3];
+var groupGuest = allgroups[4];
+
+var userAdmin = createUser("userAdmin","userAdmin1");
+addUserToGroup(userAdmin,groupAdmin);
+var userTester = createUser("userTester","userTester1");
+addUserToGroup(userTester,groupTester);
+var userManager = createUser("userManager","userManager1");
+addUserToGroup(userManager,groupManager);
+var userBasic = createUser("userBasic","userBasic1");
+addUserToGroup(userBasic,groupBasic);
+var userGuest = createUser("userGuest");
+addUserToGroup(userGuest,groupGuest);
+
+login("userGuest");
+//loginAs(userAdmin); //throw error
+logout();
+
+login("userAdmin","userAdmin1");
+console.log(currentUser());//admin
+loginAs(userTester);
+console.log(currentUser());//Tester
+logout();
+console.log(currentUser());//admin
+logout();
+console.log(currentUser());//undefined
+//----------------------------------
+var counter = 0;
+function increaseCounter(amount) { counter += amount };
+
+allListeners = [];
+function addActionListener(listener)
+{
+    allListeners.push(listener);
+}
+
+addActionListener(function(user, action) { 
+    console.log("Пользователь " + user + " только что сделал " + action.name); 
+});
+addActionListener(function(user, action) { 
+    alert("Пользователь " + user + " только что сделал " + action.name); 
+});
+
+login("userAdmin","userAdmin1"); 
+var secureIncreaseCounter = securityWrapper(increaseCounter, allrights[4]);
+secureIncreaseCounter(1);
+logout();
+console.log(counter == 1); // -> true
+
+login("userGuest");
+var secureIncreaseCounter = securityWrapper(increaseCounter, allrights[4]);
+secureIncreaseCounter(1);
+logout();
+console.log(counter == 2); // -> false 
